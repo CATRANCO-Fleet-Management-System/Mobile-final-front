@@ -9,11 +9,13 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import Icon from "react-native-vector-icons/Ionicons";
 import Sidebar from "../components/sidebar";
 import DispatchModal from "../components/DispatchModal";
 import AlleyModal from "../components/AlleyModal";
+import echo from "../../services/utils/pusherConfig"; //
+import { useFocusEffect } from "@react-navigation/native";
 
 const allBusData = [
   [
@@ -60,49 +62,56 @@ const App = () => {
   const [currentDate, setCurrentDate] = useState("");
   const [dispatchModalVisible, setDispatchModalVisible] = useState(false);
   const [alleyModalVisible, setAlleyModalVisible] = useState(false);
-  const [selectedBus, setSelectedBus] = useState<{
-    bus: string;
-    status: string;
-  } | null>(null);
+  const [selectedBus, setSelectedBus] = useState(null);
   const [timer, setTimer] = useState(600); // 10 minutes default (in seconds)
   const [isRunning, setIsRunning] = useState(false);
-  const [intervalType, setIntervalTypeState] = useState<"normal" | "rush">(
-    "normal"
+  const [isHidden, setIsHidden] = useState(false); // To toggle visibility of components
+  const [intervalType, setIntervalTypeState] = useState<"normal" | "rush">("normal");
+  const [trackerData, setTrackerData] = useState<any>(null);
+  const [path, setPath] = useState<{ latitude: number; longitude: number }[]>(
+    []
   );
 
-  const openDispatchModal = () => {
-    if (selectedBus) {
-      setDispatchModalVisible(true);
-    } else {
-      alert("Please select a bus first!");
-    }
-  };
-  const closeDispatchModal = () => setDispatchModalVisible(false);
+  // useFocusEffect to manage listener setup
+  useFocusEffect(
+    React.useCallback(() => {
+      setupRealTimeListener(); // Call the listener setup function
+    }, [])
+  );
 
-  const openAlleyModal = () => {
-    if (selectedBus) {
-      setAlleyModalVisible(true);
-    } else {
-      alert("Please select a bus first!");
-    }
-  };
-  const closeAlleyModal = () => setAlleyModalVisible(false);
+  // Function to setup real-time listener
+  const setupRealTimeListener = () => {
+    const channel = echo.channel("flespi-data");
 
-  const openSettingsModal = () => setMenuVisible(true);
-  const closeSettingsModal = () => setMenuVisible(false);
+    const handleEvent = (event: any) => {
+      console.log("Real-time Data Received:", event.data);
+      if (Array.isArray(event.data) && event.data.length > 0) {
+        const newTrackerData = event.data[0];
 
-  const resetTimer = () => {
-    setTimer(intervalType === "normal" ? 600 : 300); // Reset to appropriate interval
-  };
+        // Update path if valid data is received
+        if (newTrackerData.PositionLatitude && newTrackerData.PositionLongitude) {
+          setPath((prevPath) => [
+            ...prevPath,
+            {
+              latitude: newTrackerData.PositionLatitude,
+              longitude: newTrackerData.PositionLongitude,
+            },
+          ]);
+        }
 
-  const toggleTimer = () => {
-    setIsRunning((prev) => !prev);
-  };
+        setTrackerData(newTrackerData); // Update state with the first object
+      } else {
+        setTrackerData(null); // Clear state if no valid data
+      }
+    };
 
-  const setIntervalType = (type: "normal" | "rush") => {
-    setIntervalTypeState(type);
-    setTimer(type === "normal" ? 600 : 300); // Set timer based on interval type
-    closeSettingsModal();
+    channel.listen("FlespiDataReceived", handleEvent);
+
+    // Return cleanup function
+    return () => {
+      channel.stopListening("FlespiDataReceived");
+      echo.disconnect();
+    };
   };
 
   useEffect(() => {
@@ -127,152 +136,182 @@ const App = () => {
     };
   }, [isRunning, timer]);
 
+  const toggleVisibility = () => {
+    setIsHidden((prev) => !prev); // Toggle visibility of busPage, timerContainer, and bottomButtons
+  };
+
+  const resetTimer = () => {
+    setTimer(intervalType === "normal" ? 600 : 300); // Reset based on interval type
+  };
+
+  const setIntervalType = (type: "normal" | "rush") => {
+    setIntervalTypeState(type);
+    setTimer(type === "normal" ? 600 : 300); // Update timer based on selected interval type
+    setMenuVisible(false);
+  };
+
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${String(minutes).padStart(2, "0")}:${String(
-      remainingSeconds
-    ).padStart(2, "0")}`;
-  };
-
-  const toggleSidebar = () => {
-    setSidebarVisible((prev) => !prev);
-  };
-
-  const handleSelectBus = (bus: { bus: string; status: string }) => {
-    setSelectedBus(bus);
+    return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
   };
 
   return (
     <View style={styles.container}>
+      {/* Map with Real-Time Marker and Polyline */}
+      <MapView
+        style={styles.map}
+        key={`${trackerData?.PositionLatitude}-${trackerData?.PositionLongitude}`}
+        region={{
+          latitude: trackerData?.PositionLatitude,
+          longitude: trackerData?.PositionLongitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+      >
+        {/* Polyline for the trail */}
+        <Polyline
+          coordinates={path}
+          strokeWidth={3}
+          strokeColor="blue"
+        />
+
+        {/* Marker for the current position */}
+        {trackerData && (
+          <Marker
+            coordinate={{
+              latitude: trackerData.PositionLatitude,
+              longitude: trackerData.PositionLongitude,
+            }}
+            title="Tracker"
+            description={`Speed: ${trackerData.PositionSpeed} km/h`}
+          />
+        )}
+      </MapView>
+
       {/* Sidebar */}
-      <Sidebar isVisible={sidebarVisible} onClose={toggleSidebar} />
+      <Sidebar isVisible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={toggleSidebar}>
-          <Icon name="menu" size={25} color="black" />
+        {!isHidden && ( // Conditionally render the menu icon and date
+          <>
+            <TouchableOpacity onPress={() => setSidebarVisible(!sidebarVisible)}>
+              <Icon name="menu" size={25} color="black" />
+            </TouchableOpacity>
+            <Text style={styles.date}>{currentDate}</Text>
+          </>
+        )}
+        <TouchableOpacity onPress={toggleVisibility} style={styles.eyeIcon}>
+          <Icon name={isHidden ? "eye-outline" : "eye-off-outline"} size={25} color="black" />
         </TouchableOpacity>
-        <Text style={styles.date}>{currentDate}</Text>
       </View>
 
-      {/* Map View */}
-      <MapView
-        style={styles.map}
-        initialRegion={{
-          latitude: 8.48211,
-          longitude: 124.64706,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }}
-      >
-        <Marker
-          coordinate={{ latitude: 8.48211, longitude: 124.64706 }}
-          title="Example Location"
-          description="Xavier University"
-        />
-      </MapView>
+      {/* Free Space */}
+      <View style={styles.freeSpace} />
 
-      {/* Swipeable Bus Status */}
-      <FlatList
-        data={allBusData}
-        keyExtractor={(item, index) => index.toString()}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <View style={styles.busPage}>
-            <FlatList
-              data={item}
-              keyExtractor={(bus) => bus.id}
-              numColumns={2}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.busCard,
-                    { backgroundColor: item.color },
-                    selectedBus?.bus === item.bus && styles.selectedBusCard,
-                  ]}
-                  onPress={() =>
-                    handleSelectBus({ bus: item.bus, status: item.status })
-                  }
-                >
-                  <Icon name="bus" size={20} color="black" />
-                  <Text style={styles.busText}>{item.bus}</Text>
-                  <Text style={styles.statusText}>{item.status}</Text>
-                </TouchableOpacity>
-              )}
-            />
+      {/* Conditionally Render Components */}
+      {!isHidden && (
+        <>
+          {/* Swipeable Bus Status */}
+          <FlatList
+            data={allBusData}
+            keyExtractor={(item, index) => index.toString()}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <View style={styles.busPage}>
+                <FlatList
+                  data={item}
+                  keyExtractor={(bus) => bus.id}
+                  numColumns={2}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.busCard,
+                        { backgroundColor: item.color },
+                        selectedBus?.bus === item.bus && styles.selectedBusCard,
+                      ]}
+                      onPress={() => setSelectedBus({ bus: item.bus, status: item.status })}
+                    >
+                      <Icon name="bus" size={20} color="black" />
+                      <View style={{ flex: 1, flexDirection: "column" }}>
+                        <Text style={styles.busText}>{item.bus}</Text>
+                        <Text style={styles.statusText}>{item.status}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            )}
+          />
+
+          {/* Timer */}
+          <View style={styles.timerContainer}>
+            <TouchableOpacity onPress={() => setIsRunning(!isRunning)} style={styles.playButton}>
+              <Icon
+                name={isRunning ? "pause-outline" : "play-outline"}
+                size={30}
+                color="black"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={resetTimer} style={styles.resetButton}>
+              <Icon name="refresh-outline" size={30} color="black" />
+            </TouchableOpacity>
+            <Text style={styles.timer}>{formatTime(timer)}</Text>
+            <Text style={styles.timerLabel}>for next dispatch</Text>
+            <TouchableOpacity
+              onPress={() => setMenuVisible(true)}
+              style={styles.settingsIcon}
+            >
+              <Icon name="settings-outline" size={30} color="black" />
+            </TouchableOpacity>
           </View>
-        )}
+
+          {/* Bottom Buttons */}
+          <View style={styles.bottomButtons}>
+            <TouchableOpacity
+              style={[styles.button, styles.dispatchButton]}
+              onPress={() => setDispatchModalVisible(true)}
+            >
+              <Text style={styles.buttonText}>Dispatch</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.onAlleyButton]}
+              onPress={() => setAlleyModalVisible(true)}
+            >
+              <Text style={styles.buttonText}>On Alley</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
+      {/* Dispatch Modal */}
+      <DispatchModal
+        isVisible={dispatchModalVisible}
+        onClose={() => setDispatchModalVisible(false)}
+        selectedBus={selectedBus}
+        onConfirm={resetTimer}
       />
 
-      {/* Timer with Settings and Reset Icon */}
-      <View style={styles.timerContainer}>
-        <TouchableOpacity onPress={toggleTimer} style={styles.playButton}>
-          <Icon
-            name={isRunning ? "pause-outline" : "play-outline"}
-            size={30}
-            color="black"
-          />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={resetTimer} style={styles.resetButton}>
-          <Icon name="refresh-outline" size={30} color="black" />
-        </TouchableOpacity>
-        <View style={styles.timerIconContainer}>
-          <Icon name="time-outline" size={100} color="black" />
-        </View>
-        <Text style={styles.timer}>{formatTime(timer)}</Text>
-        <Text style={styles.timerLabel}>for next dispatch</Text>
-        <TouchableOpacity
-          onPress={openSettingsModal}
-          style={styles.settingsIcon}
-        >
-          <Icon name="settings-outline" size={30} color="black" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Bottom Buttons */}
-      <View style={styles.bottomButtons}>
-        <TouchableOpacity
-          style={[styles.button, styles.dispatchButton]}
-          onPress={openDispatchModal}
-        >
-          <Text style={styles.buttonText}>Dispatch</Text>
-        </TouchableOpacity>
-
-        {/* Dispatch Modal */}
-        <DispatchModal
-          isVisible={dispatchModalVisible}
-          onClose={closeDispatchModal}
-          selectedBus={selectedBus}
-          onConfirm={resetTimer}
-        />
-
-        {/* Alley Modal */}
-        <AlleyModal
-          isVisible={alleyModalVisible}
-          onClose={closeAlleyModal}
-          selectedBus={selectedBus}
-          onConfirm={resetTimer}
-        />
-
-        <TouchableOpacity
-          style={[styles.button, styles.onAlleyButton]}
-          onPress={openAlleyModal}
-        >
-          <Text style={styles.buttonText}>On Alley</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Alley Modal */}
+      <AlleyModal
+        isVisible={alleyModalVisible}
+        onClose={() => setAlleyModalVisible(false)}
+        selectedBus={selectedBus}
+        onConfirm={resetTimer}
+      />
 
       {/* Settings Modal */}
       <Modal
         transparent={true}
         visible={menuVisible}
         animationType="fade"
-        onRequestClose={closeSettingsModal}
+        onRequestClose={() => setMenuVisible(false)}
       >
-        <TouchableWithoutFeedback onPress={closeSettingsModal}>
+        <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalMenu}>
               <TouchableOpacity
@@ -298,28 +337,39 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "white",
-    padding: 20,
+    padding: 10,
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    padding: 10,
+    position: "relative", 
   },
   date: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
+    textAlign: "center",
+    flex: 1, 
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 10, 
+    top: 10, 
   },
   map: {
     flex: 1,
-    marginVertical: 20,
-    borderRadius: 10,
-    overflow: "hidden",
-    margin: 30,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  freeSpace: {
+    height: 390,
   },
   busPage: {
-    width: Dimensions.get("window").width - 40,
+    width: Dimensions.get("window").width - 20,
+    height: 245
   },
   busCard: {
     flex: 1,
@@ -328,62 +378,77 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "transparent",
   },
   selectedBusCard: {
-    borderColor: "red",
     borderWidth: 2,
+    borderColor: "orange",
   },
   busText: {
-    fontSize: 14,
+    fontSize: 16,
     marginLeft: 10,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   statusText: {
-    marginLeft: "auto",
+    marginLeft: 10,
     fontSize: 12,
     fontStyle: "italic",
+    color: "#666",
   },
   timerContainer: {
     alignItems: "center",
-    marginTop: -200,
+    backgroundColor: "white",
+    borderRadius: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
   },
   timer: {
     fontSize: 40,
     fontWeight: "bold",
   },
+  timerLabel: {
+    fontSize: 16,
+    color: "#888",
+    marginTop: 5,
+  },
   settingsIcon: {
     position: "absolute",
-    top: 10,
-    right: 180,
-  },
-  timerLabel: {
-    fontSize: 14,
-    color: "gray",
-    marginBottom: 40,
+    top: 17,
+    left: 80,
+    padding: 5,
+    borderRadius: 50,
+    backgroundColor: "#f7f7f7",
   },
   playButton: {
     position: "absolute",
-    top: 8,
-    left: 140,
+    top: 17,
+    right: 80,
+    padding: 5,
+    borderRadius: 50,
+    backgroundColor: "#f7f7f7",
   },
   resetButton: {
     position: "absolute",
-    top: 8,
-    left: 180,
+    top: 17,
+    right: 30,
+    padding: 5,
+    borderRadius: 50,
+    backgroundColor: "#f7f7f7",
   },
   bottomButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 20,
+    marginTop: 10,
+    paddingHorizontal: 10,
   },
   button: {
     flex: 1,
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
-    marginHorizontal: 10,
+    marginHorizontal: 5,
   },
   dispatchButton: {
     backgroundColor: "#32CD32",
@@ -396,28 +461,36 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "white",
   },
+  // Settings Modal Styles
   modalOverlay: {
     flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalMenu: {
-    width: 200,
-    backgroundColor: "white",
-    left: 170,
-    top: 330,
-    borderRadius: 10,
-    padding: 10,
+    width: "80%",
+    backgroundColor: "#fff",
+    borderRadius: 15,
+    paddingVertical: 20,
+    paddingHorizontal: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 5,
   },
   modalOption: {
-    padding: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
+    borderBottomColor: "#ddd",
   },
   modalText: {
-    fontSize: 16,
-    color: "black",
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#333",
+    textAlign: "center",
   },
 });
 
