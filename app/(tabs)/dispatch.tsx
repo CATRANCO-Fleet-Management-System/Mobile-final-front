@@ -161,12 +161,12 @@ const App = () => {
       {/* Map with Real-Time Marker and Polyline */}
       <MapView
         style={styles.map}
-        key={`${trackerData?.PositionLatitude}-${trackerData?.PositionLongitude}`}
+        // key={`${trackerData?.PositionLatitude}-${trackerData?.PositionLongitude}`}
         region={{
-          latitude: trackerData?.PositionLatitude,
-          longitude: trackerData?.PositionLongitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitude: trackerData?.PositionLatitude || 8.048263,
+          longitude: trackerData?.PositionLongitude || 123.784131,
+          latitudeDelta: 0.001,
+          longitudeDelta: 0.001,
         }}
       >
         {/* Polyline for the trail */}
