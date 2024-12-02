@@ -9,12 +9,13 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import Constants from 'expo-constants';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE  } from "react-native-maps";
 import Icon from "react-native-vector-icons/Ionicons";
 import Sidebar from "../components/sidebar";
 import DispatchModal from "../components/DispatchModal";
 import AlleyModal from "../components/AlleyModal";
-import echo from "../../services/utils/pusherConfig"; //
+import echo from "../../services/utils/pusherConfig"; 
 import { useFocusEffect } from "@react-navigation/native";
 
 const allBusData = [
@@ -160,13 +161,13 @@ const App = () => {
     <View style={styles.container}>
       {/* Map with Real-Time Marker and Polyline */}
       <MapView
+        provider={PROVIDER_GOOGLE}
         style={styles.map}
-        // key={`${trackerData?.PositionLatitude}-${trackerData?.PositionLongitude}`}
         region={{
-          latitude: trackerData?.PositionLatitude || 8.048263,
-          longitude: trackerData?.PositionLongitude || 123.784131,
-          latitudeDelta: 0.001,
-          longitudeDelta: 0.001,
+          latitude: trackerData?.PositionLatitude || 0, // Set default to 0 if data is missing
+          longitude: trackerData?.PositionLongitude || 0,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
         }}
       >
         {/* Polyline for the trail */}
@@ -177,7 +178,7 @@ const App = () => {
         />
 
         {/* Marker for the current position */}
-        {trackerData && (
+        {trackerData?.PositionLatitude && trackerData?.PositionLongitude && (
           <Marker
             coordinate={{
               latitude: trackerData.PositionLatitude,
@@ -188,6 +189,20 @@ const App = () => {
           />
         )}
       </MapView>
+
+      {/* Tracker Details */}
+      <View style={styles.details}>
+        {trackerData ? (
+          <>
+            <Text>Tracker: {trackerData.Ident}</Text>
+            <Text>Latitude: {trackerData.PositionLatitude}</Text>
+            <Text>Longitude: {trackerData.PositionLongitude}</Text>
+            <Text>Speed: {trackerData.PositionSpeed} km/h</Text>
+          </>
+        ) : (
+          <Text>Waiting for data...</Text>
+        )}
+      </View>
 
       {/* Sidebar */}
       <Sidebar isVisible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
@@ -363,6 +378,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  details: {
+    position: "absolute",
+    padding: 10,
+    backgroundColor: "#fff",
+    top: 50,
+    left: 50
   },
   freeSpace: {
     height: 390,

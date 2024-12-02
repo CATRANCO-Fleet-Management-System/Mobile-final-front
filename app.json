@@ -7,7 +7,7 @@
     "icon": "./assets/images/catranco_logo.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true
     },
@@ -15,6 +15,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCh2BLbmWKz97jg9X-OTTTLf_DJzssw-W0"
+        }
       }
     },
     "web": {
@@ -36,6 +41,9 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "googleMapsApiKey": "AIzaSyCh2BLbmWKz97jg9X-OTTTLf_DJzssw-W0"
     }
   }
 }
