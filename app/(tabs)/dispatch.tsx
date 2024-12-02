@@ -29,31 +29,17 @@ const allBusData = [
       color: "#ADFF2F",
     },
     { id: "4", bus: "BUS 004", status: "Silver Alley", color: "#D3D3D3" },
-    {
-      id: "5",
-      bus: "BUS 005",
-      status: "On road To SilverCreek",
-      color: "#ADFF2F",
-    },
-    { id: "6", bus: "BUS 006", status: "Cogon Alley", color: "#D3D3D3" },
   ],
   [
-    { id: "7", bus: "BUS 007", status: "Cogon Alley", color: "#D3D3D3" },
-    { id: "8", bus: "BUS 008", status: "On road To Cogon", color: "#ADFF2F" },
+    { id: "6", bus: "BUS 006", status: "Cogon Alley", color: "#D3D3D3" },
+    { id: "7", bus: "BUS 007", status: "On road To Cogon", color: "#ADFF2F" },
     {
-      id: "9",
-      bus: "BUS 009",
+      id: "8",
+      bus: "BUS 008",
       status: "On road To SilverCreek",
       color: "#ADFF2F",
     },
-    { id: "10", bus: "BUS 010", status: "Silver Alley", color: "#D3D3D3" },
-    {
-      id: "11",
-      bus: "BUS 011",
-      status: "On road To SilverCreek",
-      color: "#ADFF2F",
-    },
-    { id: "12", bus: "BUS 012", status: "Cogon Alley", color: "#D3D3D3" },
+    { id: "9", bus: "BUS 009", status: "Silver Alley", color: "#D3D3D3" },
   ],
 ];
 
@@ -69,16 +55,8 @@ const App = () => {
   const [isHidden, setIsHidden] = useState(false); // To toggle visibility of components
   const [intervalType, setIntervalTypeState] = useState<"normal" | "rush">("normal");
   const [trackerData, setTrackerData] = useState<any>(null);
-  const [path, setPath] = useState<{ latitude: number; longitude: number }[]>(
-    []
-  );
-
-  // useFocusEffect to manage listener setup
-  useFocusEffect(
-    React.useCallback(() => {
-      setupRealTimeListener(); // Call the listener setup function
-    }, [])
-  );
+  const [path, setPath] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [renderMap, setRenderMap] = useState(false);
 
   // Function to setup real-time listener
   const setupRealTimeListener = () => {
@@ -86,11 +64,14 @@ const App = () => {
 
     const handleEvent = (event: any) => {
       console.log("Real-time Data Received:", event.data);
-      if (Array.isArray(event.data) && event.data.length > 0) {
-        const newTrackerData = event.data[0];
 
-        // Update path if valid data is received
+      if (Array.isArray(event.data) && event.data.length > 0) {
+        const newTrackerData = event.data[0]; // Get the first item from the array
+
+        // Apply logic similar to mock data:
+        // Check if PositionLatitude and PositionLongitude are present
         if (newTrackerData.PositionLatitude && newTrackerData.PositionLongitude) {
+          // Update path with new coordinates
           setPath((prevPath) => [
             ...prevPath,
             {
@@ -98,22 +79,42 @@ const App = () => {
               longitude: newTrackerData.PositionLongitude,
             },
           ]);
-        }
 
-        setTrackerData(newTrackerData); // Update state with the first object
+          // Update trackerData with the first object
+          setTrackerData(newTrackerData);
+        } else {
+          setTrackerData(null); // Clear tracker data if no valid data is received
+        }
       } else {
-        setTrackerData(null); // Clear state if no valid data
+        setTrackerData(null); // Clear tracker data if event.data is empty
       }
     };
 
+    // Listen for the "FlespiDataReceived" event
     channel.listen("FlespiDataReceived", handleEvent);
 
-    // Return cleanup function
+    // Return cleanup function to stop the listener and disconnect
     return () => {
       channel.stopListening("FlespiDataReceived");
       echo.disconnect();
     };
   };
+
+  // Using useEffect to setup the real-time listener
+  useEffect(() => {
+    const cleanup = setupRealTimeListener(); // Call the listener setup function
+
+    // Cleanup the listener when the component is unmounted
+    return cleanup;
+  }, []); // Empty dependency array ensures this effect runs once on mount
+
+
+  // Delay rendering the map by 3 seconds
+  useEffect(() => {
+    const timeout = setTimeout(() => setRenderMap(true), 10000); // Adjust delay as needed
+    return () => clearTimeout(timeout); // Cleanup the timeout on component unmount
+  }, []);
+
 
   useEffect(() => {
     const date = new Date();
@@ -122,6 +123,7 @@ const App = () => {
     ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     setCurrentDate(formattedDate);
   }, []);
+
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -160,35 +162,42 @@ const App = () => {
   return (
     <View style={styles.container}>
       {/* Map with Real-Time Marker and Polyline */}
-      <MapView
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        region={{
-          latitude: trackerData?.PositionLatitude || 0, // Set default to 0 if data is missing
-          longitude: trackerData?.PositionLongitude || 0,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
-        }}
-      >
-        {/* Polyline for the trail */}
-        <Polyline
-          coordinates={path}
-          strokeWidth={3}
-          strokeColor="blue"
-        />
-
-        {/* Marker for the current position */}
-        {trackerData?.PositionLatitude && trackerData?.PositionLongitude && (
-          <Marker
-            coordinate={{
-              latitude: trackerData.PositionLatitude,
-              longitude: trackerData.PositionLongitude,
-            }}
-            title="Tracker"
-            description={`Speed: ${trackerData.PositionSpeed} km/h`}
+      {renderMap ? ( // Conditionally render the MapView
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          region={{
+            latitude: trackerData?.PositionLatitude,
+            longitude: trackerData?.PositionLongitude,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          }}
+        >
+          {/* Polyline for the trail */}
+          <Polyline
+            coordinates={path}
+            strokeWidth={3}
+            strokeColor="blue"
           />
-        )}
-      </MapView>
+
+          {/* Marker for the current position */}
+          {trackerData?.PositionLatitude && trackerData?.PositionLongitude && (
+            <Marker
+              coordinate={{
+                latitude: trackerData.PositionLatitude,
+                longitude: trackerData.PositionLongitude,
+              }}
+              title="Tracker"
+              description={`Speed: ${trackerData.PositionSpeed} km/h`}
+            />
+          )}
+        </MapView>
+      ) : (
+        // Show a loading state while waiting for the map to render
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading Map...</Text>
+        </View>
+      )}
 
       {/* Tracker Details */}
       <View style={styles.details}>
@@ -385,6 +394,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     top: 50,
     left: 50
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#666",
   },
   freeSpace: {
     height: 390,

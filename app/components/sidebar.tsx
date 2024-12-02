@@ -31,7 +31,6 @@ const Sidebar = ({ isVisible, onClose }) => {
             <Link href="/(tabs)/dispatch" style={styles.menuItem}>
               <Text style={styles.menuText}>Dispatch Management</Text>
             </Link>
-
             {/* Dispatch Setting Link */}
             <Link href="/(tabs)/DispatchSettings" style={styles.menuItem}>
               <Text style={styles.menuText}>Dispatch Setting</Text>
