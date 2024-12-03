@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -11,14 +11,51 @@ import {
   Platform,
   Dimensions,
   StyleSheet,
+  Alert
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { login } from "@/services/authentication/authServices";
+import { Ionicons } from "react-native-vector-icons";
 
 const { width, height } = Dimensions.get("window");
 
 const LoginScreen = () => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+
+  // Handle login form submission
+  const handleLogin = async () => {
+    if (!username || !password) {
+      Alert.alert("Error", "Please fill in both username and password.");
+      return;
+    }
+
+    setLoading(true); // Set loading state to true
+
+    try {
+      // Call the login function
+      const response = await login(username, password);
+
+      // Check if response has token and role
+      if (response?.token && response?.user?.role?.role_id === 2) {
+        // Only allow login for dispatcher (role 2)
+        router.push("/(tabs)/dispatch");
+        console.log('Successfully Logged In');
+      } else {
+        // If the role is not 2, show an error message
+        Alert.alert("Access Denied", "Only dispatchers are allowed to log in.");
+        setLoading(false); // Reset loading state
+      }
+    } catch (error) {
+      setLoading(false); // Reset loading state
+      Alert.alert("Login Error", "Invalid credentials, please try again.");
+    }
+  };
+
 
   return (
     <KeyboardAvoidingView
@@ -50,24 +87,41 @@ const LoginScreen = () => {
           <View style={styles.formContainer}>
             <View style={styles.inputWrapper}>
               <TextInput
-                placeholder="Username"
-                placeholderTextColor="gray"
-                style={styles.input}
-              />
-            </View>
+                  placeholder="Username"
+                  placeholderTextColor="gray"
+                  style={styles.input}
+                  value={username} // Set the username state
+                  onChangeText={(text) => setUsername(text)} // Update state on change
+                />
+              </View>
             <View style={styles.inputWrapper}>
               <TextInput
-                placeholder="Password"
-                placeholderTextColor="gray"
-                secureTextEntry
-                style={styles.input}
-              />
+                  placeholder="Password"
+                  placeholderTextColor="gray"
+                  secureTextEntry={!showPassword}
+                  style={styles.input}
+                  value={password} // Set the password state
+                  onChangeText={(text) => setPassword(text)} // Update state on change
+                />
+
+                {/* Eye Icon */}
+                <TouchableOpacity
+                  style={styles.eyeIconWrapper}
+                  onPress={() => setShowPassword(!showPassword)} // Toggle showPassword state
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off" : "eye"}
+                    size={24}
+                    color="gray"
+                  />
+                </TouchableOpacity>
             </View>
 
             {/* Login Button */}
             <TouchableOpacity
               style={styles.loginButtonWrapper}
-              onPress={() => router.push("/home")} // Navigate to the "home" route
+              onPress={handleLogin} // Call handleLogin function
+              disabled={loading} // Disable button when loading
             >
               <LinearGradient
                 colors={["#3b82f6", "#ef4444"]}
@@ -75,25 +129,12 @@ const LoginScreen = () => {
                 end={[1, 0]}
                 style={styles.loginButton}
               >
-                <Text style={styles.loginButtonText}>Login</Text>
+                <Text style={styles.loginButtonText}>
+                  {loading ? "Logging In..." : "Login"}
+                </Text>
               </LinearGradient>
             </TouchableOpacity>
-
-            {/* Create Account Button */}
-            <TouchableOpacity
-              style={styles.createAccountButton}
-              onPress={() => router.push("/auth/signup")} // Navigate to the "signup" route
-            >
-              <Text style={styles.createAccountText}>Create Account</Text>
-            </TouchableOpacity>
-
-            {/* Test Button */}
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={() => router.push("/(tabs)/dispatch")} // Navigate to a "test" route
-            >
-              <Text style={styles.testButtonText}>Test Button</Text>
-            </TouchableOpacity>
+            
           </View>
         </ScrollView>
       </LinearGradient>
@@ -132,10 +173,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     marginBottom: 16,
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center",
   },
   input: {
     fontSize: 16,
     color: "#000",
+    width: "85%", 
+  },
+  eyeIconWrapper: {
+    padding: 8,
   },
   loginButtonWrapper: {
     width: "100%",

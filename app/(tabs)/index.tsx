@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 
@@ -16,6 +16,9 @@ export default function SplashScreen() {
     return () => clearTimeout(timeout);
   }, []);
 
+  // Get screen dimensions
+  const { width, height } = Dimensions.get("window");
+
   return (
     <LinearGradient
       colors={["#4299E1", "#F56565"]} // Gradient colors
@@ -28,8 +31,8 @@ export default function SplashScreen() {
       <Image
         source={require("../../assets/images/catranco_logo.png")}
         style={{
-          width: 550,
-          height: 550,
+          width: width * 1, // 100% of screen width
+          height: height * 1, // 100% of screen height
         }}
         resizeMode="contain"
       />
