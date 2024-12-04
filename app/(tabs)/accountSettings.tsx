@@ -12,9 +12,9 @@ import {
 import Icon from "react-native-vector-icons/Ionicons";
 import Sidebar from "../components/sidebar";
 import { getUser, updateAccount } from "@/services/authentication/authServices";
-import renderImage from "@/constants/renderImage/renderImage";
+// import renderImage from "@/constants/renderImage/renderImage";
 
-const updateAccount = () => {
+const accountSettings = () => {
   // State for managing profile data
   const [profileImage, setProfileImage] = useState(null);
   const [username, setUsername] = useState("dis_cogon");
@@ -187,4 +187,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default updateAccount;
+export default accountSettings;

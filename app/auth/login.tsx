@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   View,
   Text,
@@ -15,8 +15,8 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { login } from "@/services/authentication/authServices";
 import { Ionicons } from "react-native-vector-icons";
+import { AuthContext } from "@/services/authentication/authContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -25,6 +25,7 @@ const LoginScreen = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { signIn } = useContext(AuthContext);
   const router = useRouter();
 
   // Handle login form submission
@@ -33,28 +34,22 @@ const LoginScreen = () => {
       Alert.alert("Error", "Please fill in both username and password.");
       return;
     }
-
-    setLoading(true); // Set loading state to true
-
+  
+    setLoading(true);
+  
     try {
-      // Call the login function
-      const response = await login(username, password);
-
-      // Check if response has token and role
-      if (response?.token && response?.user?.role?.role_id === 2) {
-        // Only allow login for dispatcher (role 2)
-        router.push("/(tabs)/dispatch");
-        console.log('Successfully Logged In');
-      } else {
-        // If the role is not 2, show an error message
-        Alert.alert("Access Denied", "Only dispatchers are allowed to log in.");
-        setLoading(false); // Reset loading state
-      }
+      const userData = await signIn(username, password); // Calls signIn in AuthContext
+  
+      // Redirect to dispatcher screen
+      router.push("/(tabs)/dispatch");
+      console.log("Successfully Logged In:", userData);
     } catch (error) {
-      setLoading(false); // Reset loading state
-      Alert.alert("Login Error", "Invalid credentials, please try again.");
+      Alert.alert("Login Error", error.message || "Invalid credentials, please try again.");
+    } finally {
+      setLoading(false);
     }
   };
+  
 
 
   return (
