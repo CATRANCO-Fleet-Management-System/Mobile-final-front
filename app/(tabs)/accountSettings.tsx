@@ -1,4 +1,4 @@
-// EditProfile.tsx
+// updateAccount.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -10,14 +10,15 @@ import {
   ScrollView,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import Sidebar from "../components/sidebar"; // Adjust the import path
+import Sidebar from "../components/sidebar";
+import { getUser, updateAccount } from "@/services/authentication/authServices";
+import renderImage from "@/constants/renderImage/renderImage";
 
-const EditProfile = () => {
+const accountSettings = () => {
   // State for managing profile data
+  const [profileImage, setProfileImage] = useState(null);
   const [username, setUsername] = useState("dis_cogon");
   const [email, setEmail] = useState("dis_cogon@example.com");
-  const [phone, setPhone] = useState("1234567890");
-  const [profileImage, setProfileImage] = useState(null);
 
   // State to control the visibility of the sidebar
   const [isSidebarVisible, setSidebarVisible] = useState(false);
@@ -72,14 +73,22 @@ const EditProfile = () => {
           keyboardType="email-address"
           style={styles.inputField}
         />
-
-        <Text style={styles.label}>Phone</Text>
+        
+        {/* <Text style={styles.label}>Password</Text>
         <TextInput
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
+          value={password}
+          onChangeText={setPassword}
+          keyboardType="password"
           style={styles.inputField}
         />
+
+        <Text style={styles.label}>Re-password</Text>
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          keyboardType="password"
+          style={styles.inputField}
+        /> */}
 
         {/* Save and Cancel Buttons */}
         <View style={styles.buttonContainer}>
@@ -178,4 +187,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default EditProfile;
+export default accountSettings;

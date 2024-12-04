@@ -1,15 +1,49 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  Image
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import { Link } from "expo-router"; // Import Link from expo-router
+import { Link } from "expo-router";
+import { useRouter } from "expo-router";
+import { logout } from "@/services/authentication/authServices";
+import { viewProfile } from "@/services/profile/profileServices";
 
 const Sidebar = ({ isVisible, onClose }) => {
+
+  const [profile, setProfile] = useState(null);
+  const router = useRouter();
+
+  // Fetch profile data when the sidebar is visible
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const data = await viewProfile(); // Call viewProfile function
+        setProfile(data); // Store the profile data in the state
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      }
+    };
+
+    if (isVisible) {
+      fetchProfile(); // Fetch profile data when the sidebar is visible
+    }
+  }, [isVisible]); // Re-fetch profile data when the sidebar visibility changes
+
+  const handleLogout = async () => {
+    try {
+      await logout(); 
+      router.push("/auth/login");
+      console.log('Sucessfully Logged Out');
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   return (
     <>
       {isVisible && (
@@ -21,8 +55,20 @@ const Sidebar = ({ isVisible, onClose }) => {
 
           {/* Profile Section */}
           <View style={styles.profileSection}>
-            <Icon name="person-circle-outline" size={50} color="black" />
-            <Text style={styles.profileName}>dis_cogon</Text>
+            {/* Display Profile Image or Frame if Image is not available */}
+            {profile?.profile?.user_profile_image ? (
+              <Image
+                source={{ uri: profile.profile.user_profile_image }}
+                style={styles.profileImage}
+              />
+            ) : (
+              <View style={styles.imageFrame}>
+                <Icon name="person-circle-outline" size={50} color="gray" />
+              </View>
+            )}
+            <Text style={styles.profileName}>
+              {profile?.user?.username || "User"}
+            </Text>
           </View>
 
           {/* Menu Options */}
@@ -31,19 +77,18 @@ const Sidebar = ({ isVisible, onClose }) => {
             <Link href="/(tabs)/dispatch" style={styles.menuItem}>
               <Text style={styles.menuText}>Dispatch Management</Text>
             </Link>
-
             {/* Dispatch Setting Link */}
             <Link href="/(tabs)/DispatchSettings" style={styles.menuItem}>
               <Text style={styles.menuText}>Dispatch Setting</Text>
             </Link>
 
             {/* Profile Settings Link */}
-            <Link href="/(tabs)/EditProfile" style={styles.menuItem}>
-              <Text style={styles.menuText}>Profile Settings</Text>
+            <Link href="/(tabs)/accountSettings" style={styles.menuItem}>
+              <Text style={styles.menuText}>Account Settings</Text>
             </Link>
 
             {/* Logout Button */}
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
               <Text style={styles.menuText}>Logout</Text>
             </TouchableOpacity>
           </View>
@@ -77,6 +122,21 @@ const styles = StyleSheet.create({
   profileSection: {
     alignItems: "center", // Center the profile section horizontally
     marginBottom: 30, // Bottom margin for spacing
+  },
+  profileImage: {
+    width: 80,  // Customize width
+    height: 80, // Customize height
+    borderRadius: 40, // Circular border for profile image
+  },
+  imageFrame: {
+    width: 80,  // Size of the frame
+    height: 80, // Size of the frame
+    borderRadius: 40, // Circular border for the frame
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0", // Frame background color
+    borderWidth: 2, // Frame border thickness
+    borderColor: "#ddd", // Border color
   },
   profileName: {
     fontSize: 18, // Profile name font size
