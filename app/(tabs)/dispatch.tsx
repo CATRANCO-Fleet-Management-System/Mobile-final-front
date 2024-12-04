@@ -9,13 +9,16 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import Constants from 'expo-constants';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE  } from "react-native-maps";
+import Constants from "expo-constants";
+import { useRouter } from "expo-router";
+import { Link } from "expo-router";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import Icon from "react-native-vector-icons/Ionicons";
 import Sidebar from "../components/sidebar";
+import History from "./history";
 import DispatchModal from "../components/DispatchModal";
 import AlleyModal from "../components/AlleyModal";
-import echo from "../../services/utils/pusherConfig"; 
+import echo from "../../services/utils/pusherConfig";
 import { useFocusEffect } from "@react-navigation/native";
 
 const allBusData = [
@@ -53,9 +56,13 @@ const App = () => {
   const [timer, setTimer] = useState(600); // 10 minutes default (in seconds)
   const [isRunning, setIsRunning] = useState(false);
   const [isHidden, setIsHidden] = useState(false); // To toggle visibility of components
-  const [intervalType, setIntervalTypeState] = useState<"normal" | "rush">("normal");
+  const [intervalType, setIntervalTypeState] = useState<"normal" | "rush">(
+    "normal"
+  );
   const [trackerData, setTrackerData] = useState<any>(null);
-  const [path, setPath] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [path, setPath] = useState<{ latitude: number; longitude: number }[]>(
+    []
+  );
   const [renderMap, setRenderMap] = useState(false);
 
   // Function to setup real-time listener
@@ -70,7 +77,10 @@ const App = () => {
 
         // Apply logic similar to mock data:
         // Check if PositionLatitude and PositionLongitude are present
-        if (newTrackerData.PositionLatitude && newTrackerData.PositionLongitude) {
+        if (
+          newTrackerData.PositionLatitude &&
+          newTrackerData.PositionLongitude
+        ) {
           // Update path with new coordinates
           setPath((prevPath) => [
             ...prevPath,
@@ -108,13 +118,11 @@ const App = () => {
     return cleanup;
   }, []); // Empty dependency array ensures this effect runs once on mount
 
-
   // Delay rendering the map by 3 seconds
   useEffect(() => {
     const timeout = setTimeout(() => setRenderMap(true), 10000); // Adjust delay as needed
     return () => clearTimeout(timeout); // Cleanup the timeout on component unmount
   }, []);
-
 
   useEffect(() => {
     const date = new Date();
@@ -123,7 +131,6 @@ const App = () => {
     ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     setCurrentDate(formattedDate);
   }, []);
-
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -156,48 +163,49 @@ const App = () => {
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+    return `${String(minutes).padStart(2, "0")}:${String(
+      remainingSeconds
+    ).padStart(2, "0")}`;
   };
-
+  const router = useRouter();
   return (
     <View style={styles.container}>
-      {/* Map with Real-Time Marker and Polyline */}
-      {renderMap ? ( // Conditionally render the MapView
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          region={{
-            latitude: trackerData?.PositionLatitude,
-            longitude: trackerData?.PositionLongitude,
-            latitudeDelta: 0.005,
-            longitudeDelta: 0.005,
-          }}
-        >
-          {/* Polyline for the trail */}
-          <Polyline
-            coordinates={path}
-            strokeWidth={3}
-            strokeColor="blue"
-          />
+      <View className="map-container">
+        {renderMap ? ( // Conditionally render the MapView
+          <MapView
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            region={{
+              latitude: trackerData?.PositionLatitude,
+              longitude: trackerData?.PositionLongitude,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005,
+            }}
+          >
+            {/* Polyline for the trail */}
+            <Polyline coordinates={path} strokeWidth={3} strokeColor="blue" />
 
-          {/* Marker for the current position */}
-          {trackerData?.PositionLatitude && trackerData?.PositionLongitude && (
-            <Marker
-              coordinate={{
-                latitude: trackerData.PositionLatitude,
-                longitude: trackerData.PositionLongitude,
-              }}
-              title="Tracker"
-              description={`Speed: ${trackerData.PositionSpeed} km/h`}
-            />
-          )}
-        </MapView>
-      ) : (
-        // Show a loading state while waiting for the map to render
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading Map...</Text>
-        </View>
-      )}
+            {/* Marker for the current position */}
+            {trackerData?.PositionLatitude &&
+              trackerData?.PositionLongitude && (
+                <Marker
+                  coordinate={{
+                    latitude: trackerData.PositionLatitude,
+                    longitude: trackerData.PositionLongitude,
+                  }}
+                  title="Tracker"
+                  description={`Speed: ${trackerData.PositionSpeed} km/h`}
+                />
+              )}
+          </MapView>
+        ) : (
+          // Show a loading state while waiting for the map to render
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading Map...</Text>
+          </View>
+        )}
+      </View>
+      {/* Map with Real-Time Marker and Polyline */}
 
       {/* Tracker Details */}
       <View style={styles.details}>
@@ -214,21 +222,46 @@ const App = () => {
       </View>
 
       {/* Sidebar */}
-      <Sidebar isVisible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
+      <Sidebar
+        isVisible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
+      />
 
-      {/* Header */}
       <View style={styles.header}>
-        {!isHidden && ( // Conditionally render the menu icon and date
-          <>
-            <TouchableOpacity onPress={() => setSidebarVisible(!sidebarVisible)}>
-              <Icon name="menu" size={25} color="black" />
-            </TouchableOpacity>
-            <Text style={styles.date}>{currentDate}</Text>
-          </>
-        )}
-        <TouchableOpacity onPress={toggleVisibility} style={styles.eyeIcon}>
-          <Icon name={isHidden ? "eye-outline" : "eye-off-outline"} size={25} color="black" />
-        </TouchableOpacity>
+        <View style={styles.leftContainer}>
+          {!isHidden && ( // Conditionally render the menu icon and date
+            <>
+              <TouchableOpacity
+                onPress={() => setSidebarVisible(!sidebarVisible)}
+              >
+                <Icon name="menu" size={25} color="black" />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        <View style={styles.rightContainer}>
+          {!isHidden && <Text style={styles.date}>{currentDate}</Text>}
+
+          {/* Link for Histogram Icon */}
+          <TouchableOpacity
+            style={styles.histogramIcon}
+            onPress={() => {
+              console.log("Histogram icon clicked"); // Log for testing
+              router.push("/(tabs)/history"); // Use useRouter for navigation
+            }}
+          >
+            <Icon name="bar-chart-outline" size={25} color="black" />
+          </TouchableOpacity>
+          {/* Eye Icon */}
+          <TouchableOpacity onPress={toggleVisibility} style={styles.eyeIcon}>
+            <Icon
+              name={isHidden ? "eye-outline" : "eye-off-outline"} // Eye icon toggle
+              size={25}
+              color="black"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Free Space */}
@@ -258,7 +291,9 @@ const App = () => {
                         { backgroundColor: item.color },
                         selectedBus?.bus === item.bus && styles.selectedBusCard,
                       ]}
-                      onPress={() => setSelectedBus({ bus: item.bus, status: item.status })}
+                      onPress={() =>
+                        setSelectedBus({ bus: item.bus, status: item.status })
+                      }
                     >
                       <Icon name="bus" size={20} color="black" />
                       <View style={{ flex: 1, flexDirection: "column" }}>
@@ -274,7 +309,10 @@ const App = () => {
 
           {/* Timer */}
           <View style={styles.timerContainer}>
-            <TouchableOpacity onPress={() => setIsRunning(!isRunning)} style={styles.playButton}>
+            <TouchableOpacity
+              onPress={() => setIsRunning(!isRunning)}
+              style={styles.playButton}
+            >
               <Icon
                 name={isRunning ? "pause-outline" : "play-outline"}
                 size={30}
@@ -366,20 +404,32 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
     padding: 10,
-    position: "relative", 
   },
-  date: {
-    fontSize: 18,
-    fontWeight: "600",
-    textAlign: "center",
-    flex: 1, 
+
+  leftContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  rightContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  histogramIcon: {
+    marginRight: 10,
   },
   eyeIcon: {
-    position: "absolute",
-    right: 10, 
-    top: 10, 
+    marginLeft: 10,
   },
+  date: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginHorizontal: 20, // Spacing between date and histogram icons
+  },
+
   map: {
     flex: 1,
     position: "absolute",
@@ -393,7 +443,7 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: "#fff",
     top: 50,
-    left: 50
+    left: 50,
   },
   loadingContainer: {
     position: "absolute",
@@ -410,16 +460,16 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   freeSpace: {
-    height: 390,
+    height: 350,
   },
   busPage: {
     width: Dimensions.get("window").width - 20,
-    height: 245
+    height: 245,
   },
   busCard: {
     flex: 1,
     margin: 10,
-    padding: 20,
+    padding: 18,
     borderRadius: 10,
     flexDirection: "row",
     alignItems: "center",

@@ -49,8 +49,11 @@ const LoginScreen = () => {
       setLoading(false);
     }
   };
-  
 
+  // Skip login and go to dispatch screen
+  const handleSkipLogin = () => {
+    router.push("/(tabs)/dispatch");
+  };
 
   return (
     <KeyboardAvoidingView
@@ -88,7 +91,7 @@ const LoginScreen = () => {
                   value={username} // Set the username state
                   onChangeText={(text) => setUsername(text)} // Update state on change
                 />
-              </View>
+            </View>
             <View style={styles.inputWrapper}>
               <TextInput
                   placeholder="Password"
@@ -129,7 +132,14 @@ const LoginScreen = () => {
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
-            
+
+            {/* Skip Button */}
+            <TouchableOpacity
+              style={styles.testButton} // Reuse styles for consistency
+              onPress={handleSkipLogin} // Skip login and go to dispatch screen
+            >
+              <Text style={styles.testButtonText}>Skip</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </LinearGradient>
