@@ -12,7 +12,7 @@ import {
 import Icon from "react-native-vector-icons/Ionicons";
 import Sidebar from "../components/sidebar";
 import { getUser, updateAccount } from "@/services/authentication/authServices";
-// import renderImage from "@/constants/renderImage/renderImage";
+import renderImage from "@/constants/renderImage/renderImage";
 
 const accountSettings = () => {
   // State for managing profile data
@@ -74,7 +74,7 @@ const accountSettings = () => {
           style={styles.inputField}
         />
         
-        <Text style={styles.label}>Password</Text>
+        {/* <Text style={styles.label}>Password</Text>
         <TextInput
           value={password}
           onChangeText={setPassword}
@@ -88,7 +88,7 @@ const accountSettings = () => {
           onChangeText={setPassword}
           keyboardType="password"
           style={styles.inputField}
-        />
+        /> */}
 
         {/* Save and Cancel Buttons */}
         <View style={styles.buttonContainer}>

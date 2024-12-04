@@ -83,7 +83,7 @@ const Sidebar = ({ isVisible, onClose }) => {
             </Link>
 
             {/* Profile Settings Link */}
-            <Link href="/(tabs)/UpdateAccount" style={styles.menuItem}>
+            <Link href="/(tabs)/accountSettings" style={styles.menuItem}>
               <Text style={styles.menuText}>Account Settings</Text>
             </Link>
 
